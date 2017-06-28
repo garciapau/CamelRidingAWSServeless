@@ -1,0 +1,13 @@
+----------------------------------------------------------------
+Mon Feb 13 12:29:45 CET 2017:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.11.1.1 - (1616546): instance a816c00e-015a-373c-57b1-00000836dcd0 
+on database directory C:\Workspace\Playground\CamelLab\target\derby with class loader java.net.URLClassLoader@1cdb9520 
+Loaded from file:/C:/Users/U6023035/.m2/repository/org/apache/derby/derby/10.11.1.1/derby-10.11.1.1.jar
+java.vendor=Oracle Corporation
+java.runtime.version=1.8.0_60-b27
+user.dir=C:\Workspace\Playground\CamelLab
+os.name=Windows 7
+os.arch=amd64
+os.version=6.1
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''

@@ -1,0 +1,53 @@
+{
+	"Records": [{
+			"eventID": "171f4e0c7fb695842fd8d6aaeff6d8db",
+			"eventName": "MODIFY",
+			"eventVersion": "1.1",
+			"eventSource": "aws:dynamodb",
+			"awsRegion": "us-west-2",
+			"dynamodb": {
+				"approximateCreationDateTime": 1487680620000,
+				"Keys": {
+					"taskId": {
+						"s": "tk002"
+					},
+					"workflowId": {
+						"s": "wf001"
+					}
+				},
+				"NewImage": {
+					"action": {
+						"s": "init"
+					},
+					"userId": {
+						"s": "pau"
+					},
+					"taskId": {
+						"s": "tk002"
+					},
+					"workflowId": {
+						"s": "wf001"
+					}
+				},
+				"OldImage": {
+					"action": {
+						"s": "reject"
+					},
+					"userId": {
+						"s": "pau"
+					},
+					"taskId": {
+						"s": "tk002"
+					},
+					"workflowId": {
+						"s": "wf001"
+					}
+				},
+				"SequenceNumber": "4096500000000002758347393",
+				"SizeBytes": 118,
+				"StreamViewType": "NEW_AND_OLD_IMAGES"
+			},
+			"eventSourceARN": "arn:aws:dynamodb:us-west-2:509786517216:table/WorkflowTasks/stream/2017-02-20T13:34:26.852"
+		}
+	]
+}

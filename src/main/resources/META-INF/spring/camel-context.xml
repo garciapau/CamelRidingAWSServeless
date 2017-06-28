@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Configures the Camel Context-->
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd">
+    <import resource="log-setup.xml"/>
+    <import resource="filter-setup.xml"/>
+    <import resource="marshaller-setup.xml"/>
+    <import resource="aws-setup.xml"/>
+    <context:property-placeholder location="classpath:/default.properties"/>
+    <bean name="sqsClient" class="com.amazonaws.services.sqs.AmazonSQSAsyncClient">
+        <constructor-arg>
+            <bean class="com.amazonaws.auth.BasicAWSCredentials">
+                <constructor-arg value="${access.key}"/>
+                <constructor-arg value="${secret.key}"/>
+            </bean>
+        </constructor-arg>
+    </bean>
+    <bean name="snsClient" class="com.amazonaws.services.sns.AmazonSNSAsyncClient">
+        <constructor-arg>
+            <bean class="com.amazonaws.auth.BasicAWSCredentials">
+                <constructor-arg value="${access.key}"/>
+                <constructor-arg value="${secret.key}"/>
+            </bean>
+        </constructor-arg>
+    </bean>
+    <bean name="s3Client" class="com.amazonaws.services.s3.AmazonS3Client">
+        <constructor-arg>
+            <bean class="com.amazonaws.auth.BasicAWSCredentials">
+                <constructor-arg value="${access.key}"/>
+                <constructor-arg value="${secret.key}"/>
+            </bean>
+        </constructor-arg>
+        <constructor-arg>
+            <bean class="com.amazonaws.ClientConfiguration"></bean>
+        </constructor-arg>
+    </bean>
+    <bean id="myAggregationStrategy" class="content.integration.aggregation.MyAggregationStrategy"/>
+
+    <camelContext id="content.journal" xmlns="http://camel.apache.org/schema/spring">
+        <endpoint id="traced"
+                  uri="jpa://org.apache.camel.processor.interceptor.JpaTraceEventMessage?persistenceUnit=tracer"/>
+        <dataFormats>
+            <json id="json" library="Jackson"/>
+            <jaxb id="jaxb" contextPath="content.integration.model"/>
+        </dataFormats>
+        <!-- <intercept>
+                <to uri="log:hello"/>
+            </intercept> -->
+        <route id="content.publication.receipting.CPS">
+            <from id="GetCPSFiles"
+                  uri="aws-s3://1p-graph?prefix=load/publication/input/bundle&amp;amazonS3Client=#s3Client"/>
+            <log id="LogMessageCPS" message="new message ${header.CamelAwsS3Key}"/>
+            <choice id="NewFIle">
+                <when id="isXMLfile">
+                    <simple id="XMLfile">${header.CamelAwsS3Key} regex '^.*xml$'</simple>
+                    <log id="LogMessageCPS2" message="Sending ${header.CamelAwsS3Key} to to SNS topic name pips_input"/>
+                    <setHeader id="setSNSSubject" headerName="CamelAwsSnsSubject">
+                        <simple>${header.CamelAwsS3Key}</simple>
+                    </setHeader>
+                    <setHeader id="setSNSId" headerName="CamelAwsSnsMessageId">
+                        <simple>${header.CamelAwsS3Key}</simple>
+                    </setHeader>
+                    <to id="DeliverBundleToPIPS" uri="aws-sns://arn:aws:sns:us-west-2:509786517216:pipsInput?amazonSNSClient=#snsClient&amp;amazonSNSEndpoint=sns.us-west-2.amazonaws.com"></to>
+                </when>
+            </choice>
+        </route>
+
+        <route id="content.publication.receipting.PIPS" autoStartup="true">
+            <from id="getPIPSResponse" uri="aws-sqs://arn:aws:sqs:us-west-2:509786517216:PipsResponse?amazonSQSClient=#sqsClient&amp;maxMessagesPerPoll=10"></from>
+            <log id="LogMessagePIPSout" message="Retrieved message ${header.CamelAwsSqsMessageId} from PIPS"/>
+
+            <choice id="isMultiple">
+                <when id="BULK">
+                    <xpath id="MULTIPLE">count(/Journal/article) > 1</xpath>
+                    <split id="SplitByArticle" parallelProcessing="true">
+                        <xpath id="SplitByArticle">/Journal/article</xpath>
+                        <setHeader id="setArticleTitle" headerName="ArticleTitle">
+                            <xpath>/article/@title</xpath>
+                        </setHeader>
+                        <bean id="EnrichMessage" ref="messageEnrichmentBean" method="addJournalId"></bean>
+                        <process id="FilterMessage" ref="messageFilter"></process>
+                        <removeHeader id="removeHeader" headerName="ArticleTitle"></removeHeader>
+                        <log id="LogMessage" message="Sending each article from the multiple XML to SQS Message Queue"/>
+                        <to id="sendEachSI" uri="direct:pubInstance"></to>
+                    </split>
+                </when>
+                <otherwise id="SINGLE">
+                    <log id="LogMessage" message="Sending the single XML message to SQS Message Queue"/>
+                    <bean id="EnrichMessage" ref="messageEnrichmentBean" method="addJournalId"></bean>
+                    <to id="sendSingleSI" uri="direct:pubInstance"></to>
+                </otherwise>
+            </choice>
+        </route>
+
+        <route id="content.publication.receipting.instance">
+            <from id="receivePublicationInstance" uri="direct:pubInstance"/>
+            <log id="LogMessagePubInstance" message="new publication instance ${body}"/>
+            <to id="DeliverBundleToContentService" uri="aws-sns://arn:aws:sns:us-west-2:509786517216:contentServiceInput?amazonSNSClient=#snsClient&amp;amazonSNSEndpoint=sns.us-west-2.amazonaws.com"></to>
+            <!--            <to id="callContentService" uri="https4://4ezjmxir48.execute-api.us-west-2.amazonaws.com:443/dev/content"></to>
+                        <log id="LogMessageContentRpy" message="Retrieved response from ContentService ${body}"/> -->
+        </route>
+
+        <route id="content.publication.receipting.CS" autoStartup="true">
+            <from id="getContentServiceResponse" uri="aws-sqs://arn:aws:sqs:us-west-2:509786517216:ContentServiceResponse?amazonSQSClient=#sqsClient&amp;maxMessagesPerPoll=10"></from>
+            <convertBodyTo type="java.lang.String"/>
+            <log id="LogMessageCSout" message="Retrieved message from ContentService: ${body}"/>
+            <transform>
+                <simple>${body.replaceAll("\u0022\u003C", "&lt;")}</simple>
+            </transform>
+            <transform>
+                <simple>${body.replaceAll("\u005C", "")}</simple>
+            </transform>
+            <transform>
+                <simple>${body.replaceAll("\u003E\u0022", ">")}</simple>
+            </transform>
+            <log id="LogMessageCSoutAfter" message="Transformed message: ${body}"/>
+            <setProperty id="getJournalId" propertyName="journalId"><xpath>/article/@journalId</xpath></setProperty>
+            <setHeader id="setBusinessCorrelationId2" headerName="businessCorrelationId"><simple>${exchangeProperty.journalId}</simple></setHeader>
+            <aggregate id="AggregateArticles" strategyRef="myAggregationStrategy" completionTimeout="15000">
+                <correlationExpression>
+                    <xpath id="getCorrelationId">/article/@journalId</xpath>
+                </correlationExpression>
+                <bean id="FormatXMLMessage" ref="messageEnrichmentBean" method="addParent"></bean>
+                <unmarshal id="UnmarshallXML" ref="jaxb"/>
+                <marshal id="BuildJSONMessage" ref="json"/>
+                <log id="LogFinalMessage" message="Journal ${exchangeProperty.journalId}: Retrieved ${exchangeProperty.CamelAggregatedSize}
+                    articles from the SQS Message Queue and aggregated into a single JSON in S3 bucket"/>
+                <setHeader id="setS3AggregatedFileName" headerName="CamelAwsS3Key"><simple>load/publication/output/${exchangeProperty.journalId}.json</simple></setHeader>
+                <to id="StoreAggregatedJournalinS3" uri="aws-s3://1p-graph?amazonS3Client=#s3Client"></to>
+            </aggregate>
+            <setHeader id="setS3AggregatedFileName" headerName="CamelAwsS3Key">
+                <simple>load/publication/output/${header.CamelAwsSqsMessageId}.xml</simple>
+            </setHeader>
+            <log id="LogMessagePIPSstore" message="Storing message ${header.CamelAwsSqsMessageId} in S3"/>
+            <to id="StorePIPSResponseS3" uri="aws-s3://1p-graph?amazonS3Client=#s3Client"></to>
+        </route>
+
+
+    </camelContext>
+
+    <!-- use camel jpa trace so we can see all the traced exchanges in a database -->
+    <bean id="camelTracer" class="org.apache.camel.processor.interceptor.Tracer">
+        <!-- turn on jpa tracing, otherwise the TraceEventMessage is a non JPA Entity class -->
+        <property name="useJpa" value="true"/>
+        <!-- the destination to send the traced messages -->
+        <property name="destination" ref="traced"/>
+        <!-- we turn ordinary trace logging off so we only see the traced messages in the database,
+             but you can have both if you like -->
+        <property name="logLevel" value="OFF"/>
+    </bean>
+
+    <!-- this is ordinary JPA spring configuration -->
+    <bean id="transactionTemplate" class="org.springframework.transaction.support.TransactionTemplate">
+        <property name="transactionManager">
+            <bean class="org.springframework.orm.jpa.JpaTransactionManager">
+                <property name="entityManagerFactory" ref="entityManagerFactory"/>
+            </bean>
+        </property>
+    </bean>
+
+    <!-- this is ordinary JPA spring configuration -->
+    <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalEntityManagerFactoryBean">
+        <!-- we have named our presistence unit tracer in the META-INF/persistence.xml file -->
+        <property name="persistenceUnitName" value="tracer"/>
+    </bean>
+
+</beans>
