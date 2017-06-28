@@ -1,19 +1,11 @@
 package content.integration;
 
-import content.integration.dashboard.Hawtio;
-import org.apache.camel.*;
-import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.ConsumerTemplate;
+import org.apache.camel.Exchange;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.spring.SpringCamelContext;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
-import org.apache.camel.spring.Main;
-
-import static org.apache.camel.com.github.benmanes.caffeine.cache.Caffeine.from;
-import static org.apache.camel.model.rest.RestParamType.body;
 
 public class CamelMain {
     // Use the Hawtio camel plugin instead of this main class
