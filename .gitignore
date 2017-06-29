@@ -5,9 +5,8 @@
 # IntelliJ project files
 .idea
 *.iml
-target/*
 out
 gen
 src/test/
 default.properties
-/src/main/java/content/integration/client/MyAWSClient.java
+target/

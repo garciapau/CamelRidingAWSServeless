@@ -8,7 +8,11 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 public class CamelMain {
+
+
     // Use the Hawtio camel plugin instead of this main class
+
+
     public static void main(String[] args) throws Exception {
 /*        ApplicationContext context =
                 new ClassPathXmlApplicationContext("beans.xml");

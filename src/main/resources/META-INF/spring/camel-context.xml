@@ -11,7 +11,7 @@
     <import resource="log-setup.xml"/>
     <import resource="filter-setup.xml"/>
     <import resource="marshaller-setup.xml"/>
-    <import resource="aws-setup.xml"/>
+<!--    <import resource="aws-setup.xml"/> -->
     <context:property-placeholder location="classpath:/default.properties"/>
     <bean name="sqsClient" class="com.amazonaws.services.sqs.AmazonSQSAsyncClient">
         <constructor-arg>
@@ -83,59 +83,45 @@
                         <setHeader id="setArticleTitle" headerName="ArticleTitle">
                             <xpath>/article/@title</xpath>
                         </setHeader>
-                        <bean id="EnrichMessage" ref="messageEnrichmentBean" method="addJournalId"></bean>
+                        <bean id="EnrichMessageMultiple" ref="messageEnrichmentBean" method="addJournalId"></bean>
                         <process id="FilterMessage" ref="messageFilter"></process>
                         <removeHeader id="removeHeader" headerName="ArticleTitle"></removeHeader>
-                        <log id="LogMessage" message="Sending each article from the multiple XML to SQS Message Queue"/>
-                        <to id="sendEachSI" uri="direct:pubInstance"></to>
+                        <log id="LogMessageMultiple" message="Sending each article from the multiple XML to Content Service SNS Topic"/>
+                        <to id="sendEachSI" uri="aws-sns://arn:aws:sns:us-west-2:509786517216:contentServiceInput?amazonSNSClient=#snsClient&amp;amazonSNSEndpoint=sns.us-west-2.amazonaws.com"></to>
                     </split>
                 </when>
                 <otherwise id="SINGLE">
-                    <log id="LogMessage" message="Sending the single XML message to SQS Message Queue"/>
-                    <bean id="EnrichMessage" ref="messageEnrichmentBean" method="addJournalId"></bean>
+                    <log id="LogMessageSingle" message="Sending the single XML message to SQS Message Queue"/>
+                    <bean id="EnrichMessageSingle" ref="messageEnrichmentBean" method="addJournalId"></bean>
                     <to id="sendSingleSI" uri="direct:pubInstance"></to>
                 </otherwise>
             </choice>
-        </route>
-
-        <route id="content.publication.receipting.instance">
-            <from id="receivePublicationInstance" uri="direct:pubInstance"/>
-            <log id="LogMessagePubInstance" message="new publication instance ${body}"/>
-            <to id="DeliverBundleToContentService" uri="aws-sns://arn:aws:sns:us-west-2:509786517216:contentServiceInput?amazonSNSClient=#snsClient&amp;amazonSNSEndpoint=sns.us-west-2.amazonaws.com"></to>
-            <!--            <to id="callContentService" uri="https4://4ezjmxir48.execute-api.us-west-2.amazonaws.com:443/dev/content"></to>
-                        <log id="LogMessageContentRpy" message="Retrieved response from ContentService ${body}"/> -->
         </route>
 
         <route id="content.publication.receipting.CS" autoStartup="true">
             <from id="getContentServiceResponse" uri="aws-sqs://arn:aws:sqs:us-west-2:509786517216:ContentServiceResponse?amazonSQSClient=#sqsClient&amp;maxMessagesPerPoll=10"></from>
             <convertBodyTo type="java.lang.String"/>
             <log id="LogMessageCSout" message="Retrieved message from ContentService: ${body}"/>
-            <transform>
-                <simple>${body.replaceAll("\u0022\u003C", "&lt;")}</simple>
-            </transform>
-            <transform>
-                <simple>${body.replaceAll("\u005C", "")}</simple>
-            </transform>
-            <transform>
-                <simple>${body.replaceAll("\u003E\u0022", ">")}</simple>
-            </transform>
+            <transform><simple>${body.replaceAll("\u0022\u003C", "&lt;")}</simple></transform>
+            <transform><simple>${body.replaceAll("\u005C", "")}</simple></transform>
+            <transform><simple>${body.replaceAll("\u003E\u0022", ">")}</simple></transform>
             <log id="LogMessageCSoutAfter" message="Transformed message: ${body}"/>
             <setProperty id="getJournalId" propertyName="journalId"><xpath>/article/@journalId</xpath></setProperty>
+            <setProperty id="getTitle" propertyName="title"><xpath>/article/@title</xpath></setProperty>
             <setHeader id="setBusinessCorrelationId2" headerName="businessCorrelationId"><simple>${exchangeProperty.journalId}</simple></setHeader>
-            <aggregate id="AggregateArticles" strategyRef="myAggregationStrategy" completionTimeout="15000">
+            <aggregate id="AggregateArticles" strategyRef="myAggregationStrategy" completionTimeout="5000">
                 <correlationExpression>
                     <xpath id="getCorrelationId">/article/@journalId</xpath>
                 </correlationExpression>
                 <bean id="FormatXMLMessage" ref="messageEnrichmentBean" method="addParent"></bean>
                 <unmarshal id="UnmarshallXML" ref="jaxb"/>
                 <marshal id="BuildJSONMessage" ref="json"/>
-                <log id="LogFinalMessage" message="Journal ${exchangeProperty.journalId}: Retrieved ${exchangeProperty.CamelAggregatedSize}
-                    articles from the SQS Message Queue and aggregated into a single JSON in S3 bucket"/>
+                <log id="LogFinalMessage" message="Journal ${exchangeProperty.journalId}: Retrieved ${exchangeProperty.CamelAggregatedSize} articles from the SQS Message Queue and aggregated into a single JSON in S3 bucket"/>
                 <setHeader id="setS3AggregatedFileName" headerName="CamelAwsS3Key"><simple>load/publication/output/${exchangeProperty.journalId}.json</simple></setHeader>
                 <to id="StoreAggregatedJournalinS3" uri="aws-s3://1p-graph?amazonS3Client=#s3Client"></to>
             </aggregate>
             <setHeader id="setS3AggregatedFileName" headerName="CamelAwsS3Key">
-                <simple>load/publication/output/${header.CamelAwsSqsMessageId}.xml</simple>
+                <simple>load/publication/output/${exchangeProperty.title}.xml</simple>
             </setHeader>
             <log id="LogMessagePIPSstore" message="Storing message ${header.CamelAwsSqsMessageId} in S3"/>
             <to id="StorePIPSResponseS3" uri="aws-s3://1p-graph?amazonS3Client=#s3Client"></to>

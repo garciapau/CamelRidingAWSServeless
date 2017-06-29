@@ -1,19 +1,16 @@
 package content.integration.client;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClient;
+import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import org.apache.camel.Exchange;
 import org.apache.camel.Handler;
 
-/**
- * Created by u6023035 on 24/01/2017.
- */
+// Currently not being used. It was just an example how we can build our own AWS client
+
 public class MyAWSClient implements AWSClient {
-    private AmazonS3Client client;
+    private AmazonS3 client;
 
     @Handler //Default method for Camel
     public void putFileinS3(Exchange exchange) throws Exception {
@@ -21,9 +18,7 @@ public class MyAWSClient implements AWSClient {
                 + exchange.getIn().getHeader("CamelFileName") + "\n"
                 + exchange.getIn().getBody(String.class)
         );
-        AWSCredentials awsCredentials = new BasicAWSCredentials("AKIAJKCXXNGWDYGLTRDA", "rTuMVlKmO2s74i2ol+nkohmM/a5U0/aNvCIRYrMM");
-        ClientConfiguration clientConfiguration = new ClientConfiguration();
-        client = new AmazonS3Client(awsCredentials, clientConfiguration);
+        client = AmazonS3ClientBuilder.defaultClient();
         client.putObject("1p-graph", "load/out/" + exchange.getIn().getMessageId() + ".json",exchange.getIn().getBody(String.class));
     }
 
@@ -32,12 +27,8 @@ public class MyAWSClient implements AWSClient {
                 + exchange.getIn().getHeader("CamelFileName") + "\n"
                 + exchange.getIn().getBody(String.class)
         );
-        AWSCredentials awsCredentials = new BasicAWSCredentials("AKIAJKCXXNGWDYGLTRDA", "rTuMVlKmO2s74i2ol+nkohmM/a5U0/aNvCIRYrMM");
-        ClientConfiguration clientConfiguration = new ClientConfiguration();
-        AmazonSQS client = new AmazonSQSClient(awsCredentials, clientConfiguration);
-
+        AmazonSQS client = AmazonSQSClientBuilder.defaultClient();
         client.sendMessage("WorkflowTasksQueue", exchange.getIn().getBody(String.class));
-//        client.sendMessage("WorkflowTasksQueue", "<test>aaa</test>");
     }
 
 }
