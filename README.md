@@ -27,7 +27,7 @@ Below is a sample query to retrieve the instances tracking:
 ## How to use it
 ```bash
 git clone https://github.com/garciapau/CamelRidingAWSServeless.git
-cd CamelLab
+cd CamelRidingAWSServeless
 mvn hawtio:camel
 ```
 It automatically starts the Hawtio UI to model, monitor, track... the workflows at http://localhost:8090/hawtio/
