@@ -29,6 +29,10 @@ Below is a sample query to retrieve the instances tracking:
 ```bash
 git clone https://github.com/garciapau/CamelRidingAWSServeless.git
 cd CamelRidingAWSServeless
+Unless you have your AWS keys already defined in your environment, create a default.properties with AWS keys in src/main/resources/, with these entries:
+    access.key=<YOUR_KEY_HERE>
+    secret.key=<YOUR_SECRET_KEY_HERE>
+Change camel context to point to your S3, SNS, SQS components in src/main/resources/META-INF/spring/camel-context.xml
 mvn hawtio:camel
 ```
-It automatically starts the Hawtio UI to model, monitor, track... the workflows at http://localhost:8090/hawtio/
+Voila! It automatically starts the Hawtio UI to model, monitor, track... the workflows at http://localhost:8090/hawtio/
