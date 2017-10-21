@@ -4,7 +4,8 @@
 Lab that shows hot to use Camel to orchestrate a process using AWS Lambdas, SQS and SNS Since this solution implements asynchronous patterns, every stage is defined as a separate Camel route
 
 ## Design
-TODO
+Below diagram shows the 3 camel routes using AWS serverless components:
+![Camel and Hawtio in action](https://github.com/garciapau/CamelRidingAWSServeless/blob/master/src/data/CamelonHawtio.JPG)
 
 ## Tracking instances - Database Persistence
 Improvement. Instead of keeping it in  memory, Camel stores the instances history into a non-embedded Apache Derby database.
