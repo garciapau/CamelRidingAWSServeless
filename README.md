@@ -5,6 +5,7 @@ Lab that shows hot to use Camel to orchestrate a process using AWS Lambdas, SQS 
 
 ## Design
 Below diagram shows the 3 camel routes using AWS serverless components:
+
 ![Camel and Hawtio in action](https://github.com/garciapau/CamelRidingAWSServeless/blob/master/src/data/CamelonHawtio.JPG)
 
 ## Tracking instances - Database Persistence
@@ -27,12 +28,19 @@ Below is a sample query to retrieve the instances tracking:
 ```
 ## How to use it
 ```bash
-git clone https://github.com/garciapau/CamelRidingAWSServeless.git
-cd CamelRidingAWSServeless
+    git clone https://github.com/garciapau/CamelRidingAWSServeless.git
+    cd CamelRidingAWSServeless
+```
 Unless you have your AWS keys already defined in your environment, create a default.properties with AWS keys in src/main/resources/, with these entries:
+```bash
     access.key=<YOUR_KEY_HERE>
     secret.key=<YOUR_SECRET_KEY_HERE>
-Change camel context to point to your S3, SNS, SQS components in src/main/resources/META-INF/spring/camel-context.xml
-mvn hawtio:camel
+```
+Change camel context to point to your S3, SNS, SQS components in 
+```bash
+src/main/resources/META-INF/spring/camel-context.xml
+```
+```bash
+    mvn hawtio:camel
 ```
 Voila! It automatically starts the Hawtio UI to model, monitor, track... the workflows at http://localhost:8090/hawtio/
